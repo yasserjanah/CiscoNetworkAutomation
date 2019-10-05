@@ -133,6 +133,7 @@ class Devices(object):
         readline.set_completer(Complete)
         telnet = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] Use Telnet [Y/n] : {msg.WHITE}"))
         if telnet.lower() in ['', 'y']:
+            telnet = True
             COMMANDS = []
             readline.parse_and_bind("tab: complete")
             readline.set_completer(Complete)
@@ -145,11 +146,13 @@ class Devices(object):
         readline.set_completer(Complete)
         ssh = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] Use SSH [Y/n] : {msg.WHITE}"))
         if ssh.lower() in ['', 'y']:
+            ssh = True
             COMMANDS = ['y', 'n']
             readline.parse_and_bind("tab: complete")
             readline.set_completer(Complete)
             ssh_use_keys = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] use ssh keys (recommended) [Y/n]: {msg.WHITE}"))
             if ssh_use_keys.lower() in ['', 'y']:
+                ssh_use_keys = True
                 COMMANDS = [str(Path.home())]
                 readline.parse_and_bind("tab: complete")
                 readline.set_completer(Complete)
@@ -172,7 +175,7 @@ class Devices(object):
         data['telnet_port'] = telnet_port if telnet != False else 23
         data['ssh'] = ssh
         data['ssh_use_keys'] = ssh_use_keys
-        data['ssh_keys'] = ssh_keys if ssh_use_keys != False else ''
+        data['ssh_keys'] = ssh_keys if (ssh_use_keys and ssh_use_keys != False) else ''
         data['ssh_username'] = ssh_user
         data['ssh_password'] = ssh_pass
         data['ssh_port'] = ssh_port if ssh_port != "" else 22
@@ -188,7 +191,8 @@ class Devices(object):
         f.close()
         msg.success('Device added successefly')
 
-    def encrypt(key=self._key, clear):
+    def encrypt(clear):
+        key = self._key
         enc = []
         for i in range(len(clear)):
             key_c = key[i % len(key)]
@@ -196,7 +200,8 @@ class Devices(object):
             enc.append(enc_c)
         return base64.urlsafe_b64encode("".join(enc).encode()).decode()
 
-    def decrypt(key=self._key, enc):
+    def decrypt(enc):
+        key = self._key
         dec = []
         enc = base64.urlsafe_b64decode(enc).decode()
         for i in range(len(enc)):
@@ -244,14 +249,14 @@ def main():
         if args.list and any([args.routers, args.switches]) is False:
             print('list of all devices')
         elif args.add and any([args.routers, args.switches]) is False:
-            Devices._addDevice(dtype=None)
+            Devices()._addDevice(dtype=None)
         elif args.routers and any([args.switches]) is False:
             print('routers only')
             if args.list:
                 print('list routers')
             elif args.add:
                 print('add routers')
-                Devices._addDevice(dtype=1)
+                Devices()._addDevice(dtype=1)
             elif args.delete:
                 print('delete routers')
         elif args.switches and any([args.routers]) is False:
@@ -260,7 +265,7 @@ def main():
                 print('list switches')
             elif args.add:
                 print('add switches')
-                Devices._addDevice(dtype=2)
+                Devices()._addDevice(dtype=2)
             elif args.delete:
                 print('delete switches')
         else:
