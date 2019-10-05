@@ -14,19 +14,73 @@ try:
     import time
     import argparse
     import readline
+    import glob
+    import socket
+    from peewee import *
     from pathlib import Path
+    from prompt_toolkit import prompt
+    from prompt_toolkit.completion import WordCompleter
+    from prompt_toolkit.validation import Validator, ValidationError
+    from prompt_toolkit.formatted_text import HTML, ANSI
+    from prompt_toolkit.styles import Style
 except ImportError as err:
     exit(str(err))
 
-global COMMANDS
-COMMANDS = [1, 2, 3]
-def Complete(text, stat):
-    for cmd in COMMANDS:
-        if cmd.startswith(text):
-            if not stat:
-                return cmd
-            else:
-                stat -= 1
+db = SqliteDatabase('devices/devices.sql')
+
+class Routers(Model):
+    hostname = CharField()
+    device_type = CharField()
+    host = CharField()
+    telnet = BooleanField()
+    telnet_username = CharField()
+    telnet_password = CharField()
+    telnet_port = CharField()
+    ssh = BooleanField()
+    ssh_use_keys = BooleanField()
+    ssh_keys = CharField()
+    ssh_username = CharField()
+    ssh_password = CharField()
+    ssh_port = CharField()
+    class Meta:
+        database = db
+
+class Switches(Model):
+    hostname = CharField()
+    device_type = CharField()
+    host = CharField()
+    telnet = BooleanField()
+    telnet_username = CharField()
+    telnet_password = CharField()
+    telnet_port = CharField()
+    ssh = BooleanField()
+    ssh_use_keys = BooleanField()
+    ssh_keys = CharField()
+    ssh_username = CharField()
+    ssh_password = CharField()
+    ssh_port = CharField()
+    class Meta:
+        database = db
+
+class Others(Model):
+    hostname = CharField()
+    device_type = CharField()
+    host = CharField()
+    telnet = BooleanField()
+    telnet_username = CharField()
+    telnet_password = CharField()
+    telnet_port = CharField()
+    ssh = BooleanField()
+    ssh_use_keys = BooleanField()
+    ssh_keys = CharField()
+    ssh_username = CharField()
+    ssh_password = CharField()
+    ssh_port = CharField()
+    class Meta:
+        database = db
+
+db.connect()
+db.create_tables([Routers, Switches, Others], safe=True)
 
 class msg(object):
     WHITE  = u"\u001b[38;5;255m"
@@ -81,114 +135,129 @@ class TelnetSession:
         print(self._tn.read_all().decode('ascii'))
 
 
-#TelnetSession('10.0.0.1').run()
+def isInSupportedTypes(text):
+    if text in ['1', '2', '3']:
+        return True
+    return False
+
+def isYesOrNo(text):
+    if text.lower() in ['yes', 'no']:
+        return True
+    return False
+
 class Devices(object):
     """
     Controling saved Devices [ don't worry the programe do this automaticaly (^_^) ]
 
     [Syntax]
-        e.g =>  Devices {
-                    'ID'         : 1
+        e.g =>  {
                     'hostname'   : 'Router1',
                     'device_type': 'cisco_ios', # define as a cisco OS
-                    'host'       : 'cisco_router.company.local',
-                    'telnet':{
-                            'username' : 'router_telnet_user',
-                            'password' : 'RouterTelnetPassword$$',
-                            'port'     :  23,
-                            }
-                    'ssh': {
-                            'username' : 'router_ssh_user',
-                            'password' : 'RouterSshPassword$$',
-                            'port'     :  22,
-                            'use_keys' :  False,
-                            'keys'     : '/home/user/.ssh/id_pub'
-                            }
-                    }
+                    'host'       : 'cisco_router.company.local', # e.g 192.168.1.1
+                    'telnet':    : true
+                    'telnet_username'   : 'router_telnet_user',
+                    'telnet_password'   : 'RouterTelnetPassword$$',
+                    'telnet_port'       :  23,
+                    'ssh': true,
+                    'ssh_username' : 'router_ssh_user',
+                    'ssh_password' : 'RouterSshPassword$$',
+                    'ssh_port'     :  22,
+                    'ssh_use_keys' :  False,
+                    'ssh_keys'     : '/home/user/.ssh/id_pub'
+                }
     """
     def __init__(self):
         self._devicesDir    = "devices/"
         self._routerFile    = os.path.join(self._devicesDir, "routers.json")
         self._switchesFile  = os.path.join(self._devicesDir, "switches.json")
         self._othersFile  = os.path.join(self._devicesDir, "others.json")
-        self._key = 'CNAG00DKeyForEncryption&Decryption'
+        self._key = '$KEY$CNAG00DKeyForEncryption&Decryption'
+        self.style = Style.from_dict({
+            'completion-menu.completion': 'bg:#9e0000 #ffffff',
+            'completion-menu.completion.current': 'bg:#ffffff #000000',
+            'scrollbar.background': 'bg:#88aaaa',
+            'scrollbar.button': 'bg:#222222',
+            'green': '#16ad02 bold',
+            'white': '#ffffff bold',
+            'red': '#bd0202 bold',
+            'blue': '#000fe0 bold',
+            'yellow': '#f2cf0a bold',
+        })
+
+    def _InputWithCompletion(self, question:str , words:list, _validator=None, password=False):
+        asked = "<white>[<green>+</green>]</white><white> {0} : </white>".format(question)
+        text = prompt(HTML(asked), completer=WordCompleter(words), complete_while_typing=True, validator=_validator, mouse_support=True, is_password=password, style=self.style)
+        return text
 
     def _addDevice(self, dtype=None):
         if dtype is None:
-            print(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] Choice Device Type : ")
-            print(f"\t       {msg.RED}1{msg.WHITE}) - {msg.BLUE}Router ")
-            print(f"\t       {msg.RED}2{msg.WHITE}) - {msg.BLUE}Switch ")
-            print(f"\t       {msg.RED}3{msg.WHITE}) - {msg.BLUE}Others ")
-            readline.parse_and_bind("tab: complete")
-            readline.set_completer(Complete)
-            d_type = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] Router or Switch (e.g 1 for routers) : {msg.WHITE}"))
-        COMMANDS = []
-        readline.parse_and_bind("tab: complete")
-        readline.set_completer(Complete)
-        hostname = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] Hostname (e.g R1) : {msg.WHITE}"))
+            msg.info("add new device")
+            print(f"\t{msg.RED}1{msg.WHITE}) - {msg.BLUE}Router ")
+            print(f"\t{msg.RED}2{msg.WHITE}) - {msg.BLUE}Switch ")
+            print(f"\t{msg.RED}3{msg.WHITE}) - {msg.BLUE}Others ")
+            validator = Validator.from_callable(isInSupportedTypes,error_message=('please choice : 1) Routers - 2) Switches - 3) Others'), move_cursor_to_end=True)
+            d_type = self._InputWithCompletion(question="Choice Device Type", words=['1', '2', '3'], _validator=validator)
+        hostname = self._InputWithCompletion(question="Hostname (e.g Router1 )", words=[])
         device_type = 'cisco_ios'
-        host = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] Host (e.g 192.168.1.1) : {msg.WHITE}"))
-        COMMANDS = ['y', 'n']
-        readline.parse_and_bind("tab: complete")
-        readline.set_completer(Complete)
-        telnet = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] Use Telnet [Y/n] : {msg.WHITE}"))
-        if telnet.lower() in ['', 'y']:
+        host = self._InputWithCompletion(question="Host or IP (e.g 192.168.1.1 or cisco1.company.local)", words=[])
+        validator = Validator.from_callable(isYesOrNo ,error_message=('please choice yes or no'), move_cursor_to_end=True)
+        telnet = self._InputWithCompletion(question="Use Telnet [Yes/no]", words=['yes', 'no'], _validator=validator)
+        if telnet.lower() in ['yes']:
             telnet = True
-            COMMANDS = []
-            readline.parse_and_bind("tab: complete")
-            readline.set_completer(Complete)
-            telnet_user = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] Telnet username : {msg.WHITE}"))
-            telnet_pass = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] Telnet password : {msg.WHITE}"))
-            telnet_port = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] Telnet port (default:23) : {msg.WHITE}"))
+            telnet_user = self._InputWithCompletion(question="Telnet username", words=[])
+            telnet_pass = self._InputWithCompletion(question="Telnet password", words=[])
+            telnet_port = self._InputWithCompletion(question="Telnet port (default:23)", words=['23'])
         else: telnet = False
-        COMMANDS = ['y', 'n']
-        readline.parse_and_bind("tab: complete")
-        readline.set_completer(Complete)
-        ssh = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] Use SSH [Y/n] : {msg.WHITE}"))
-        if ssh.lower() in ['', 'y']:
+        ssh = self._InputWithCompletion(question="Use ssh [Yes/no]", words=['yes', 'no'], _validator=validator)
+        if ssh.lower() in ['yes']:
             ssh = True
-            COMMANDS = ['y', 'n']
-            readline.parse_and_bind("tab: complete")
-            readline.set_completer(Complete)
-            ssh_use_keys = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] use ssh keys (recommended) [Y/n]: {msg.WHITE}"))
-            if ssh_use_keys.lower() in ['', 'y']:
+            ssh_use_keys = self._InputWithCompletion(question="Use ssh keys (recommended) [Yes/no]", words=['yes', 'no'], _validator=validator)
+            if ssh_use_keys.lower() in ['yes']:
                 ssh_use_keys = True
-                COMMANDS = [str(Path.home())]
-                readline.parse_and_bind("tab: complete")
-                readline.set_completer(Complete)
-                ssh_keys = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] keys path : {msg.WHITE}"))
+                ssh_keys = self._InputWithCompletion(question="Keys Path", words=[str(Path.home())+'/', str(os.getcwd())])
             else: ssh_use_keys = False
-            COMMANDS = []
-            readline.parse_and_bind("tab: complete")
-            readline.set_completer(Complete)
-            ssh_user = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] SSH username : {msg.WHITE}"))
-            ssh_pass = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] SSH password : {msg.WHITE}"))
-            ssh_port = str(input(f"\t{msg.WHITE}[{msg.GREEN}ADD{msg.WHITE}] SSH port (default:22) : {msg.WHITE}"))
+            ssh_user = self._InputWithCompletion(question="SSH username", words=[])
+            ssh_pass = self._InputWithCompletion(question="SSH password", words=[])
+            ssh_port = self._InputWithCompletion(question="SSH port (default:22)", words=['22'])
         else: ssh = False
-        data = {}
-        data['hostname'] = hostname
-        data['device_type'] = device_type
-        data['host'] = host
-        data['telnet'] = telnet
-        data['telnet_username'] = telnet_user if telnet != False else ''
-        data['telnet_password'] = telnet_pass if telnet != False else ''
-        data['telnet_port'] = telnet_port if telnet != False else 23
-        data['ssh'] = ssh
-        data['ssh_use_keys'] = ssh_use_keys
-        data['ssh_keys'] = ssh_keys if (ssh_use_keys and ssh_use_keys != False) else ''
-        data['ssh_username'] = ssh_user
-        data['ssh_password'] = ssh_pass
-        data['ssh_port'] = ssh_port if ssh_port != "" else 22
-        d_type = dtype
-        if d_type == 1:
-            f = open(self._routerFile, mode='a')
-        elif d_type == 2:
-            f = open(self._switchesFile, mode='a')
+        hostname = hostname
+        device_type = device_type
+        host = host
+        telnet = telnet
+        telnet_username = telnet_user if telnet != False else ''
+        telnet_password = telnet_pass if telnet != False else ''
+        telnet_port = telnet_port if telnet != False else 23
+        ssh = ssh
+        if ssh is False:
+            ssh_use_keys = False
+            ssh_keys = ''
+            ssh_username = ''
+            ssh_password = ''
+            ssh_port = 22
         else:
-            f = open(self._othersFile, mode='a')
-        json_data = json.dumps(data)
-        f.write(json_data)
-        f.close()
+            ssh_use_keys = ssh_use_keys
+            if ssh_use_keys is False: ssh_keys = ''
+            else: ssh_keys = ssh_keys
+            ssh_username = ssh_user
+            ssh_password = ssh_pass
+            ssh_port = ssh_port if ssh_port != "" else 22
+        d_type = int(dtype) if dtype is not None else int(d_type)
+        if d_type == 1:
+            Routers.create(hostname=hostname, device_type=device_type, host=host,
+                        telnet=telnet, telnet_username=telnet_user, telnet_password=telnet_pass,
+                        telnet_port=telnet_port, ssh=ssh, ssh_use_keys=ssh_use_keys, ssh_keys=ssh_keys,
+                        ssh_username=ssh_user, ssh_password=ssh_pass, ssh_port=ssh_port)
+        elif d_type == 2:
+            Switches.create(hostname=hostname, device_type=device_type, host=host,
+                        telnet=telnet, telnet_username=telnet_user, telnet_password=telnet_pass,
+                        telnet_port=telnet_port, ssh=ssh, ssh_use_keys=ssh_use_keys, ssh_keys=ssh_keys,
+                        ssh_username=ssh_user, ssh_password=ssh_pass, ssh_port=ssh_port)
+        else:
+            Others.create(hostname=hostname, device_type=device_type, host=host,
+                        telnet=telnet, telnet_username=telnet_user, telnet_password=telnet_pass,
+                        telnet_port=telnet_port, ssh=ssh, ssh_use_keys=ssh_use_keys, ssh_keys=ssh_keys,
+                        ssh_username=ssh_user, ssh_password=ssh_pass, ssh_port=ssh_port)
+        db.close()
         msg.success('Device added successefly')
 
     def encrypt(clear):
@@ -234,17 +303,6 @@ class ArgsParser(object):
 
 def main():
     args = ArgsParser()._GetAll()
-    print("==========================================")
-    print("Devices\t:  ",args.devices)
-    print("Routers\t:  ",args.routers)
-    print("Switches\t: ",args.switches)
-    print("List\t:  ",args.list)
-    print("Add\t:  ",args.add)
-    print("Delete\t:  ",args.delete)
-    print("Ssh\t:  ",args.ssh)
-    print("Use-Keys\t:  ",args.use_keys)
-    print("Telnet\t:  ",args.telnet)
-    print("==========================================")
     if args.devices and any([args.ssh, args.telnet, args.use_keys, args.connect]) is False:
         if args.list and any([args.routers, args.switches]) is False:
             print('list of all devices')
@@ -288,4 +346,5 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         exit(msg.failure("CTRL+C detected"))
     except Exception as err:
-        exit(msg.failure(str(err)))
+        raise (err)
+        #exit(msg.failure(str(err)))
