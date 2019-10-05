@@ -1,0 +1,19 @@
+{Devices {
+        'ID'         : 1
+        'hostname'   : 'Router1',
+        'device_type': 'cisco_ios', # define as a cisco OS
+        'host'       : 'cisco_router.company.local',
+        'telnet':{
+                 'username' : 'router_telnet_user',
+                 'password' : 'RouterTelnetPassword$$',
+                 'port'     :  23,
+                 },
+        'ssh':{
+              'username' : 'router_ssh_user',
+              'password' : 'RouterSshPassword$$',
+              'port'     :  22,
+              'use_keys' :  False,
+              'keys'     : '/home/user/.ssh/id_pub'
+              },
+       }
+}
