@@ -28,7 +28,7 @@ try:
 except ImportError as err:
     exit(str(err))
 
-db = SqliteDatabase('devices/devices.sql')
+db = SqliteDatabase('devices/devices.db')
 
 class Routers(Model):
     hostname = CharField()
@@ -206,7 +206,14 @@ class Devices(object):
             validator = Validator.from_callable(isInSupportedTypes,error_message=('please choice : 1) Routers - 2) Switches - 3) Others'), move_cursor_to_end=True)
             d_type = self._InputWithCompletion(question="Choice Device Type", words=['1', '2', '3'], _validator=validator)
         validator = Validator.from_callable(isNotEmpty ,error_message=('please enter valid hostname'), move_cursor_to_end=True)
-        hostname = self._InputWithCompletion(question="Hostname (e.g Router1 )", words=[], _validator=validator)
+        if dtype is None:
+            dtype = d_type
+        if dtype == 1:
+            hostname = self._InputWithCompletion(question="Hostname (e.g Router1 )", words=[], _validator=validator)
+        elif dtype == 2:
+            hostname = self._InputWithCompletion(question="Hostname (e.g Switch1 )", words=[], _validator=validator)
+        else:
+            hostname = self._InputWithCompletion(question="Hostname (e.g Device1 )", words=[], _validator=validator)
         device_type = 'cisco_ios'
         validator = Validator.from_callable(isNotEmpty ,error_message=('please enter valid IP or domain name of Cisco equipment'), move_cursor_to_end=True)
         host = self._InputWithCompletion(question="IP (e.g 192.168.1.1 or cisco1.company.local)", words=[], _validator=validator)
@@ -266,8 +273,6 @@ class Devices(object):
             ssh_pass = self.encrypt(ssh_pass)
             ssh_port = ssh_port if ssh_port != "" else 22
         d_type = int(dtype) if dtype is not None else int(d_type)
-        print('[+] telnet PASS '+telnet_pass)
-        print('[+] SSH PASS : '+ssh_pass)
         if d_type == 1:
             Routers.create(hostname=hostname, device_type=device_type, host=host,
                         telnet=telnet, telnet_username=telnet_user, telnet_password=telnet_pass,
@@ -361,8 +366,6 @@ class Devices(object):
             DEVICE_TYPE = row['device_type']
             HOST = row['host']
             TELNET = row['telnet']
-            print('[+] encrypted telnet '+TELNET)
-            print('[+] cleared telnet '+self.decrypt(TELNET))
             SSH = row['ssh']
             SSH_USE_KEYS = row['ssh_use_keys']
             SSH_KEYS = row['ssh_keys']
