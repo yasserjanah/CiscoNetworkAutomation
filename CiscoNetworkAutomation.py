@@ -16,6 +16,8 @@ try:
     import readline
     import glob
     import socket
+    import base64
+    import termtables as tt
     from peewee import *
     from pathlib import Path
     from prompt_toolkit import prompt
@@ -32,12 +34,12 @@ class Routers(Model):
     hostname = CharField()
     device_type = CharField()
     host = CharField()
-    telnet = BooleanField()
+    telnet = CharField()
     telnet_username = CharField()
     telnet_password = CharField()
     telnet_port = CharField()
-    ssh = BooleanField()
-    ssh_use_keys = BooleanField()
+    ssh = CharField()
+    ssh_use_keys = CharField()
     ssh_keys = CharField()
     ssh_username = CharField()
     ssh_password = CharField()
@@ -49,12 +51,12 @@ class Switches(Model):
     hostname = CharField()
     device_type = CharField()
     host = CharField()
-    telnet = BooleanField()
+    telnet = CharField()
     telnet_username = CharField()
     telnet_password = CharField()
     telnet_port = CharField()
-    ssh = BooleanField()
-    ssh_use_keys = BooleanField()
+    ssh = CharField()
+    ssh_use_keys = CharField()
     ssh_keys = CharField()
     ssh_username = CharField()
     ssh_password = CharField()
@@ -66,12 +68,12 @@ class Others(Model):
     hostname = CharField()
     device_type = CharField()
     host = CharField()
-    telnet = BooleanField()
+    telnet = CharField()
     telnet_username = CharField()
     telnet_password = CharField()
     telnet_port = CharField()
-    ssh = BooleanField()
-    ssh_use_keys = BooleanField()
+    ssh = CharField()
+    ssh_use_keys = CharField()
     ssh_keys = CharField()
     ssh_username = CharField()
     ssh_password = CharField()
@@ -88,6 +90,10 @@ class msg(object):
     GREEN  = u"\u001b[38;5;40m"
     BLUE   = u"\u001b[38;5;21m"
     YELLOW = u"\u001b[38;5;220m"
+    BLINK = "\033[6m"
+    UNDERLINE = "\033[4m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
     
     @staticmethod
     def failure(_msg:str, very=False):
@@ -145,6 +151,11 @@ def isYesOrNo(text):
         return True
     return False
 
+def isNotEmpty(text):
+    if text in ['', ' ']:
+        return False
+    return True
+
 class Devices(object):
     """
     Controling saved Devices [ don't worry the programe do this automaticaly (^_^) ]
@@ -168,9 +179,6 @@ class Devices(object):
     """
     def __init__(self):
         self._devicesDir    = "devices/"
-        self._routerFile    = os.path.join(self._devicesDir, "routers.json")
-        self._switchesFile  = os.path.join(self._devicesDir, "switches.json")
-        self._othersFile  = os.path.join(self._devicesDir, "others.json")
         self._key = '$KEY$CNAG00DKeyForEncryption&Decryption'
         self.style = Style.from_dict({
             'completion-menu.completion': 'bg:#9e0000 #ffffff',
@@ -186,10 +194,10 @@ class Devices(object):
 
     def _InputWithCompletion(self, question:str , words:list, _validator=None, password=False):
         asked = "<white>[<green>+</green>]</white><white> {0} : </white>".format(question)
-        text = prompt(HTML(asked), completer=WordCompleter(words), complete_while_typing=True, validator=_validator, mouse_support=True, is_password=password, style=self.style)
+        text = prompt(HTML(asked), completer=WordCompleter(words, ignore_case=True), complete_while_typing=True, validator=_validator, mouse_support=True, is_password=password, style=self.style)
         return text
 
-    def _addDevice(self, dtype=None):
+    def _addDevices(self, dtype=None):
         if dtype is None:
             msg.info("add new device")
             print(f"\t{msg.RED}1{msg.WHITE}) - {msg.BLUE}Router ")
@@ -197,51 +205,69 @@ class Devices(object):
             print(f"\t{msg.RED}3{msg.WHITE}) - {msg.BLUE}Others ")
             validator = Validator.from_callable(isInSupportedTypes,error_message=('please choice : 1) Routers - 2) Switches - 3) Others'), move_cursor_to_end=True)
             d_type = self._InputWithCompletion(question="Choice Device Type", words=['1', '2', '3'], _validator=validator)
-        hostname = self._InputWithCompletion(question="Hostname (e.g Router1 )", words=[])
+        validator = Validator.from_callable(isNotEmpty ,error_message=('please enter valid hostname'), move_cursor_to_end=True)
+        hostname = self._InputWithCompletion(question="Hostname (e.g Router1 )", words=[], _validator=validator)
         device_type = 'cisco_ios'
-        host = self._InputWithCompletion(question="Host or IP (e.g 192.168.1.1 or cisco1.company.local)", words=[])
+        validator = Validator.from_callable(isNotEmpty ,error_message=('please enter valid IP or domain name of Cisco equipment'), move_cursor_to_end=True)
+        host = self._InputWithCompletion(question="IP (e.g 192.168.1.1 or cisco1.company.local)", words=[], _validator=validator)
         validator = Validator.from_callable(isYesOrNo ,error_message=('please choice yes or no'), move_cursor_to_end=True)
         telnet = self._InputWithCompletion(question="Use Telnet [Yes/no]", words=['yes', 'no'], _validator=validator)
         if telnet.lower() in ['yes']:
             telnet = True
-            telnet_user = self._InputWithCompletion(question="Telnet username", words=[])
-            telnet_pass = self._InputWithCompletion(question="Telnet password", words=[])
-            telnet_port = self._InputWithCompletion(question="Telnet port (default:23)", words=['23'])
-        else: telnet = False
+            validator = Validator.from_callable(isNotEmpty ,error_message=('please enter telnet username'), move_cursor_to_end=True)
+            telnet_user = self._InputWithCompletion(question="Telnet username", words=[], _validator=validator)
+            validator = Validator.from_callable(isNotEmpty ,error_message=('please enter telnet password'), move_cursor_to_end=True)
+            telnet_pass = self._InputWithCompletion(question="Telnet password", words=[], _validator=validator)
+            validator = Validator.from_callable(isNotEmpty ,error_message=('please enter telnet port , PRESS <TAB> for default value '), move_cursor_to_end=True)
+            telnet_port = self._InputWithCompletion(question="Telnet port (default:23)", words=['23'], _validator=validator)
+        else:
+            telnet = False
+            msg.warning("you can't connect to this cisco equipment using telnet")
         ssh = self._InputWithCompletion(question="Use ssh [Yes/no]", words=['yes', 'no'], _validator=validator)
         if ssh.lower() in ['yes']:
             ssh = True
+            validator = Validator.from_callable(isNotEmpty ,error_message=('please enter ssh username'), move_cursor_to_end=True)
+            ssh_user = self._InputWithCompletion(question="SSH username", words=[], _validator=validator)
+            validator = Validator.from_callable(isNotEmpty ,error_message=('please enter telnet password'), move_cursor_to_end=True)
+            ssh_pass = self._InputWithCompletion(question="SSH password", words=[], _validator=validator)
+            validator = Validator.from_callable(isNotEmpty ,error_message=('please enter SSH port , PRESS <TAB> for default value '), move_cursor_to_end=True)
+            ssh_port = self._InputWithCompletion(question="SSH port (default:22)", words=['22'], _validator=validator)
             ssh_use_keys = self._InputWithCompletion(question="Use ssh keys (recommended) [Yes/no]", words=['yes', 'no'], _validator=validator)
             if ssh_use_keys.lower() in ['yes']:
                 ssh_use_keys = True
-                ssh_keys = self._InputWithCompletion(question="Keys Path", words=[str(Path.home())+'/', str(os.getcwd())])
+                validator = Validator.from_callable(isNotEmpty ,error_message=('please enter SSH Keys path'), move_cursor_to_end=True)
+                ssh_keys = self._InputWithCompletion(question="Keys Path", words=[str(Path.home())+'/', str(os.getcwd())], _validator=validator)
             else: ssh_use_keys = False
-            ssh_user = self._InputWithCompletion(question="SSH username", words=[])
-            ssh_pass = self._InputWithCompletion(question="SSH password", words=[])
-            ssh_port = self._InputWithCompletion(question="SSH port (default:22)", words=['22'])
-        else: ssh = False
-        hostname = hostname
+        else: 
+            ssh = False
+            msg.warning("you can't connect to this cisco equipment using SSH")
+        hostname = hostname if (hostname != "") else "-"
         device_type = device_type
-        host = host
-        telnet = telnet
-        telnet_username = telnet_user if telnet != False else ''
-        telnet_password = telnet_pass if telnet != False else ''
-        telnet_port = telnet_port if telnet != False else 23
-        ssh = ssh
+        host = host if (host != "") else "-"
+        if telnet is False:
+            telnet_user = '-'
+            telnet_pass = '-'
+            telnet_port = 23
+        else:
+            telnet_user = telnet_user
+            telnet_pass = self.encrypt(telnet_pass)
+            telnet_port = telnet_port
         if ssh is False:
             ssh_use_keys = False
-            ssh_keys = ''
-            ssh_username = ''
-            ssh_password = ''
+            ssh_keys = '-'
+            ssh_user = '-'
+            ssh_pass = '-'
             ssh_port = 22
         else:
             ssh_use_keys = ssh_use_keys
-            if ssh_use_keys is False: ssh_keys = ''
+            if ssh_use_keys is False: ssh_keys = '-'
             else: ssh_keys = ssh_keys
-            ssh_username = ssh_user
-            ssh_password = ssh_pass
+            ssh_user = ssh_user
+            ssh_pass = self.encrypt(ssh_pass)
             ssh_port = ssh_port if ssh_port != "" else 22
         d_type = int(dtype) if dtype is not None else int(d_type)
+        print('[+] telnet PASS '+telnet_pass)
+        print('[+] SSH PASS : '+ssh_pass)
         if d_type == 1:
             Routers.create(hostname=hostname, device_type=device_type, host=host,
                         telnet=telnet, telnet_username=telnet_user, telnet_password=telnet_pass,
@@ -259,8 +285,91 @@ class Devices(object):
                         ssh_username=ssh_user, ssh_password=ssh_pass, ssh_port=ssh_port)
         db.close()
         msg.success('Device added successefly')
+    
+    def _listDevices(self, dtype=None):
+        HEADERS = ['ID', 'CATEGORY' ,'HOSTNAME' , 'DEVICE_TYPE', 'HOST', 'TELNET', 
+                'SSH', 'SSH_USE_KEYS', 'SSH_KEYS']
+        if dtype == 1:
+            DATA = []
+            routers_data = Routers.select().dicts()
+            self.sort_data(DATA, [i for i in routers_data], cat="routers")
+            if DATA == []:
+                print('[+] no data')
+            else:
+                msg.info(f"{msg.UNDERLINE}List of Routers{msg.RESET}:")
+                table = tt.to_string(DATA, header=HEADERS, padding=(0, 1))
+                print(table)
+        elif dtype == 2:
+            DATA = []
+            switches_data = Switches.select().dicts()
+            self.sort_data(DATA, [i for i in switches_data], cat="switches")
+            if DATA == []:
+                print('[+] no data')
+            else:
+                msg.info(f"{msg.UNDERLINE}List of Switches{msg.RESET}:")
+                table = tt.to_string(DATA, header=HEADERS, padding=(0, 1))
+                print(table)
+        elif dtype == 3:
+            DATA = []
+            others_data = Others.select().dicts()
+            self.sort_data(DATA, [i for i in others_data], cat="others")
+            if DATA == []:
+                print('[+] no data')
+            else:
+                msg.info(f"{msg.UNDERLINE}List of Others Devices{msg.RESET}:")
+                table = tt.to_string(DATA, header=HEADERS, padding=(0, 1))
+                print(table)
+        else:
+            DATA_R = []
+            DATA_S = []
+            DATA_O = []
+            routers_data = Routers.select().dicts()
+            switches_data = Switches.select().dicts()
+            others_data = Others.select().dicts()
+            self.sort_data(DATA_R, [i for i in routers_data], cat="routers")
+            self.sort_data(DATA_S, [i for i in switches_data], cat="switches")
+            self.sort_data(DATA_O, [i for i in others_data], cat="others")
+            if DATA_R == []:
+                print("[+] no routers's data")
+            else:
+                print()
+                msg.info(f"{msg.UNDERLINE}List of Routers{msg.RESET}:")
+                table_r = tt.to_string(DATA_R, header=HEADERS, padding=(0, 1))
+                print(table_r)
+            if DATA_S == []:
+                print("[+] no switches's data")
+            else:
+                print()
+                msg.info(f"{msg.UNDERLINE}List of Switches{msg.RESET}:")
+                table_s = tt.to_string(DATA_S, header=HEADERS, padding=(0, 1))
+                print(table_s)
+            if DATA_O == []:
+                print("[+] no others devices's data")
+            else:
+                print()
+                msg.info(f"{msg.UNDERLINE}List of Others{msg.RESET}:")
+                table_o = tt.to_string(DATA_O, header=HEADERS, padding=(0, 1))
+                print(table_o)
 
-    def encrypt(clear):
+            
+
+    def sort_data(self, DATA:list ,d_:list, cat=None):
+        for row in d_:
+            ID = row['id']
+            CATEGORY = cat
+            HOSTNAME = row['hostname']
+            DEVICE_TYPE = row['device_type']
+            HOST = row['host']
+            TELNET = row['telnet']
+            print('[+] encrypted telnet '+TELNET)
+            print('[+] cleared telnet '+self.decrypt(TELNET))
+            SSH = row['ssh']
+            SSH_USE_KEYS = row['ssh_use_keys']
+            SSH_KEYS = row['ssh_keys']
+            DATA.append([ID, CATEGORY, HOSTNAME, DEVICE_TYPE, HOST, TELNET, SSH, SSH_USE_KEYS, SSH_KEYS])
+        return True
+
+    def encrypt(self, clear):
         key = self._key
         enc = []
         for i in range(len(clear)):
@@ -269,7 +378,7 @@ class Devices(object):
             enc.append(enc_c)
         return base64.urlsafe_b64encode("".join(enc).encode()).decode()
 
-    def decrypt(enc):
+    def decrypt(self, enc):
         key = self._key
         dec = []
         enc = base64.urlsafe_b64decode(enc).decode()
@@ -306,24 +415,27 @@ def main():
     if args.devices and any([args.ssh, args.telnet, args.use_keys, args.connect]) is False:
         if args.list and any([args.routers, args.switches]) is False:
             print('list of all devices')
+            Devices()._listDevices(dtype=None)
         elif args.add and any([args.routers, args.switches]) is False:
-            Devices()._addDevice(dtype=None)
+            Devices()._addDevices(dtype=None)
         elif args.routers and any([args.switches]) is False:
             print('routers only')
             if args.list:
                 print('list routers')
+                Devices()._listDevices(dtype=1)
             elif args.add:
                 print('add routers')
-                Devices()._addDevice(dtype=1)
+                Devices()._addDevices(dtype=1)
             elif args.delete:
                 print('delete routers')
         elif args.switches and any([args.routers]) is False:
             print('switches only')
             if args.list:
                 print('list switches')
+                Devices()._listDevices(dtype=2)
             elif args.add:
                 print('add switches')
-                Devices()._addDevice(dtype=2)
+                Devices()._addDevices(dtype=2)
             elif args.delete:
                 print('delete switches')
         else:
