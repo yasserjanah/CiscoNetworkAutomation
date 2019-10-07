@@ -194,6 +194,13 @@ def isNotEmpty(text):
         return False
     return True
 
+def isNumber(text):
+    try:
+        int(text)
+        return True
+    except ValueError:
+        return False
+
 class Devices(object):
     """
     Controling saved Devices [ don't worry the programe do this automaticaly (^_^) ]
@@ -230,8 +237,10 @@ class Devices(object):
             'yellow': '#f2cf0a bold',
         })
 
-    def _InputWithCompletion(self, question:str , words:list, _validator=None, password=False):
-        asked = "<white>[<green>+</green>]</white><white> {0} : </white>".format(question)
+    def _InputWithCompletion(self, question:str , words:list, _validator=None, password=False, critical=False):
+        if critical != False:
+            asked = "<white>[<red>+</red>]</white><white> {0} : </white>".format(question)
+        else: asked = "<white>[<green>+</green>]</white><white> {0} : </white>".format(question)
         text = prompt(HTML(asked), completer=WordCompleter(words, ignore_case=True), complete_while_typing=True, validator=_validator, mouse_support=True, is_password=password, style=self.style)
         return text
 
@@ -339,6 +348,7 @@ class Devices(object):
             if DATA == []:
                 msg.info(f"{msg.UNDERLINE}List of Routers{msg.RESET}:\n")
                 msg.nodata(f"{msg.BOLD}no routers data {msg.YELLOW}found.\n", tab=True)
+                return False
             else:
                 msg.info(f"{msg.UNDERLINE}List of Routers{msg.RESET}:")
                 table = tt.to_string(DATA, header=HEADERS, padding=(0, 1))
@@ -350,6 +360,7 @@ class Devices(object):
             if DATA == []:
                 msg.info(f"{msg.UNDERLINE}List of Switches{msg.RESET}:\n")
                 msg.nodata(f"{msg.BOLD}no switche data {msg.YELLOW}found.\n", tab=True)
+                return False
             else:
                 msg.info(f"{msg.UNDERLINE}List of Switches{msg.RESET}:")
                 table = tt.to_string(DATA, header=HEADERS, padding=(0, 1))
@@ -361,6 +372,7 @@ class Devices(object):
             if DATA == []:
                 msg.info(f"{msg.UNDERLINE}List of Others devices{msg.RESET}:")
                 msg.nodata(f"{msg.BOLD}no others devices {msg.YELLOW}found.", tab=True)
+                return False
             else:
                 msg.info(f"{msg.UNDERLINE}List of Others Devices{msg.RESET}:")
                 table = tt.to_string(DATA, header=HEADERS, padding=(0, 1))
@@ -416,15 +428,55 @@ class Devices(object):
 
     def _deleteDevices(self, dtype=None):
         if dtype == 1:
-            print("1 ")
+            check = self._listDevices(dtype=1)
+            if check != False:
+                validator = Validator.from_callable(isNumber, error_message=('please enter valid ID '), move_cursor_to_end=True)
+                ID_D = self._InputWithCompletion(question="Type <red>ID</red> of <yellow>router</yellow> you want delete ?", words=[], _validator=validator, critical=True)
+                validator = Validator.from_callable(isYesOrNo ,error_message=('please choice (yes or no) '), move_cursor_to_end=True)
+                _askdelete = self._InputWithCompletion(question="Sure, you want to delete all saved devices ?", words=['yes', 'no'], _validator=validator, critical=True)
+                print(_askdelete)
+                if (_askdelete.lower() == 'yes'):
+                    self.db_delete_id(ID=ID_D)
+            else:
+                msg.warning('no data to delete.\n')
+
         elif dtype == 2:
-            print("2 ")
+            check = self._listDevices(dtype=2)
+            if check != False:
+                validator = Validator.from_callable(isNumber, error_message=('please enter valid ID '), move_cursor_to_end=True)
+                ID_D = self._InputWithCompletion(question="Type <red>ID</red> of <yellow>switch</yellow> you want delete ?", words=[], _validator=validator, critical=True)
+                validator = Validator.from_callable(isYesOrNo ,error_message=('please choice (yes or no) '), move_cursor_to_end=True)
+                _askdelete = self._InputWithCompletion(question="Sure, you want to delete all saved devices ?", words=['yes', 'no'], _validator=validator, critical=True)
+                print(_askdelete)
+                if (_askdelete.lower() == 'yes'):
+                    self.db_delete_id(ID=ID_D)
+            else:
+                msg.warning('no data to delete.\n')
+
         elif dtype == 3:
-            print("3 ")
+            check = self._listDevices(dtype=3)
+            if check != False:
+                validator = Validator.from_callable(isNumber, error_message=('please enter valid ID '), move_cursor_to_end=True)
+                ID_D = self._InputWithCompletion(question="Type <red>ID</red> of <yellow>device</yellow> you want delete ?", words=[], _validator=validator, critical=True)
+                validator = Validator.from_callable(isYesOrNo ,error_message=('please choice (yes or no) '), move_cursor_to_end=True)
+                _askdelete = self._InputWithCompletion(question="Sure, you want to delete all saved devices ?", words=['yes', 'no'], _validator=validator, critical=True)
+                print(_askdelete)
+                if (_askdelete.lower() == 'yes'):
+                    self.db_delete_id(ID=ID_D)
+            else:
+                msg.warning('no data to delete.\n')
+
         if dtype is None:
-            validator = Validator.from_callable(isYesOrNo ,error_message=('please choice (yes or no) '), move_cursor_to_end=True)
-            _askdelete = self._InputWithCompletion(question="Sure, you want to delete all saved devices ?", words=['yes', 'no'], _validator=validator)
-            print(_askdelete)
+            validator = Validator.from_callable(isYesOrNo, error_message=('please choice (yes or no) '), move_cursor_to_end=True)
+            _askdelete = self._InputWithCompletion(question="Sure, you want to delete all saved devices ?", words=['yes', 'no'], _validator=validator, critical=True)
+            os.system('rm devices/devices.db')
+
+    def db_delete_id(self, ID: int) -> bool:
+        d = Routers.delete_by_id(ID)
+        if d == ID:
+            return True
+
+        return False
 
     def encrypt(self, clear):
         key = self._key
@@ -478,7 +530,7 @@ def main():
         elif args.add and any([args.routers, args.switches, args.list, args.delete, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
             Devices()._addDevices(dtype=None)
         elif args.delete and any([args.routers, args.switches, args.list, args.add, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
-            exit('delete all list of devices')
+            print('delete all list of devices')
             Devices()._deleteDevices(dtype=None)
         elif args.routers and any([args.switches, args.ssh, args.ssh_keys, args.telnet]) is False:
             print('routers only')
@@ -490,6 +542,7 @@ def main():
                 Devices()._addDevices(dtype=1)
             if args.delete and any([args.add, args.list]) is False:
                 print('delete routers')
+                Devices()._deleteDevices(dtype=1)
         elif args.switches and any([args.routers, args.ssh, args.ssh_keys, args.telnet]) is False:
             print('switches only')
             if args.list and any([args.add, args.delete]) is False:
@@ -500,6 +553,7 @@ def main():
                 Devices()._addDevices(dtype=2)
             if args.delete and any([args.add, args.list]) is False:
                 print('delete switches')
+                Devices()._deleteDevices(dtype=2)
         elif args.config_file and any([args.routers, args.switches, args.list, args.add, args.delete, args.edit]) is False:
             print("config file")
             if args.ssh and any([args.telnet]) is False:
