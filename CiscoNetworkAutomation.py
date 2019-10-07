@@ -195,11 +195,14 @@ def isNotEmpty(text):
     return True
 
 def isNumber(text):
-    try:
-        int(text)
-        return True
-    except ValueError:
+    if text in ['',' ']:
         return False
+    else:
+        try:
+            int(text)
+            return True
+        except ValueError:
+            return False
 
 class Devices(object):
     """
@@ -272,7 +275,7 @@ class Devices(object):
             telnet_user = self._InputWithCompletion(question="Telnet username", words=[], _validator=validator)
             validator = Validator.from_callable(isNotEmpty ,error_message=('please enter telnet password'), move_cursor_to_end=True)
             telnet_pass = self._InputWithCompletion(question="Telnet password", words=[], _validator=validator)
-            validator = Validator.from_callable(isNotEmpty ,error_message=('please enter telnet port , PRESS <TAB> for default value '), move_cursor_to_end=True)
+            validator = Validator.from_callable(isNumber ,error_message=('please enter telnet port , PRESS <TAB> for default value '), move_cursor_to_end=True)
             telnet_port = self._InputWithCompletion(question="Telnet port (default:23)", words=['23'], _validator=validator)
         else:
             telnet = False
@@ -284,8 +287,9 @@ class Devices(object):
             ssh_user = self._InputWithCompletion(question="SSH username", words=[], _validator=validator)
             validator = Validator.from_callable(isNotEmpty ,error_message=('please enter telnet password'), move_cursor_to_end=True)
             ssh_pass = self._InputWithCompletion(question="SSH password", words=[], _validator=validator)
-            validator = Validator.from_callable(isNotEmpty ,error_message=('please enter SSH port , PRESS <TAB> for default value '), move_cursor_to_end=True)
+            validator = Validator.from_callable(isNumber ,error_message=('please enter SSH port , PRESS <TAB> for default value '), move_cursor_to_end=True)
             ssh_port = self._InputWithCompletion(question="SSH port (default:22)", words=['22'], _validator=validator)
+            validator = Validator.from_callable(isYesOrNo ,error_message=('please choice yes or no'), move_cursor_to_end=True)
             ssh_use_keys = self._InputWithCompletion(question="Use ssh keys (recommended) [Yes/no]", words=['yes', 'no'], _validator=validator)
             if ssh_use_keys.lower() in ['yes']:
                 ssh_use_keys = True
@@ -295,6 +299,8 @@ class Devices(object):
         else: 
             ssh = False
             msg.warning("you can't connect to this cisco equipment using SSH")
+        if all([ssh, telnet]) is False:
+            msg.failure("you can't connect to this device , you don't choice any method of connection ", very=True)
         hostname = hostname if (hostname != "") else "-"
         device_type = device_type
         host = host if (host != "") else "-"
@@ -346,37 +352,40 @@ class Devices(object):
             routers_data = Routers.select().dicts()
             self.sort_data(DATA, [i for i in routers_data], cat="routers")
             if DATA == []:
-                msg.info(f"{msg.UNDERLINE}List of Routers{msg.RESET}:\n")
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Routers{msg.RESET}:\n")
                 msg.nodata(f"{msg.BOLD}no routers data {msg.YELLOW}found.\n", tab=True)
                 return False
             else:
-                msg.info(f"{msg.UNDERLINE}List of Routers{msg.RESET}:")
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Routers{msg.RESET}:")
                 table = tt.to_string(DATA, header=HEADERS, padding=(0, 1))
                 print(table)
+                print(' ')
         elif dtype == 2:
             DATA = []
             switches_data = Switches.select().dicts()
             self.sort_data(DATA, [i for i in switches_data], cat="switches")
             if DATA == []:
-                msg.info(f"{msg.UNDERLINE}List of Switches{msg.RESET}:\n")
-                msg.nodata(f"{msg.BOLD}no switche data {msg.YELLOW}found.\n", tab=True)
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Switches{msg.RESET}:\n")
+                msg.nodata(f"{msg.BOLD}no switches data {msg.YELLOW}found.\n", tab=True)
                 return False
             else:
-                msg.info(f"{msg.UNDERLINE}List of Switches{msg.RESET}:")
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Switches{msg.RESET}:")
                 table = tt.to_string(DATA, header=HEADERS, padding=(0, 1))
                 print(table)
+                print(' ')
         elif dtype == 3:
             DATA = []
             others_data = Others.select().dicts()
             self.sort_data(DATA, [i for i in others_data], cat="others")
             if DATA == []:
-                msg.info(f"{msg.UNDERLINE}List of Others devices{msg.RESET}:")
-                msg.nodata(f"{msg.BOLD}no others devices {msg.YELLOW}found.", tab=True)
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Others{msg.RESET}:\n")
+                msg.nodata(f"{msg.BOLD}no others devices data {msg.YELLOW}found.\n", tab=True)
                 return False
             else:
-                msg.info(f"{msg.UNDERLINE}List of Others Devices{msg.RESET}:")
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Others{msg.RESET}:")
                 table = tt.to_string(DATA, header=HEADERS, padding=(0, 1))
                 print(table)
+                print(' ')
         else:
             DATA_R = []
             DATA_S = []
@@ -391,7 +400,7 @@ class Devices(object):
                 msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Routers{msg.RESET}:\n")
                 msg.nodata(f"{msg.BOLD}no routers data {msg.YELLOW}found.\n", tab=True)
             else:
-                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Routers{msg.RESET}:\n")
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Routers{msg.RESET}:")
                 table_r = tt.to_string(DATA_R, header=HEADERS, padding=(0, 1))
                 print(table_r)
                 print(' ')
@@ -399,7 +408,7 @@ class Devices(object):
                 msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Switches{msg.RESET}:\n")
                 msg.nodata(f"{msg.BOLD}no switches data {msg.YELLOW}found.\n", tab=True)
             else:
-                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Switches{msg.RESET}:\n")
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Switches{msg.RESET}:")
                 table_s = tt.to_string(DATA_S, header=HEADERS, padding=(0, 1))
                 print(table_s)
                 print(' ')
@@ -407,7 +416,7 @@ class Devices(object):
                 msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Others{msg.RESET}:\n")
                 msg.nodata(f"{msg.BOLD}no others devices data {msg.YELLOW}found.\n", tab=True)
             else:
-                msg.info(f"{msg.UNDERLINE}List of Others{msg.RESET}:")
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Others{msg.RESET}:")
                 table_o = tt.to_string(DATA_O, header=HEADERS, padding=(0, 1))
                 print(table_o)
                 print(' ')
@@ -436,7 +445,7 @@ class Devices(object):
                 _askdelete = self._InputWithCompletion(question="Sure, you want to delete all saved devices ?", words=['yes', 'no'], _validator=validator, critical=True)
                 print(_askdelete)
                 if (_askdelete.lower() == 'yes'):
-                    self.db_delete_id(ID=ID_D)
+                    self.db_delete_id(ID=ID_D, dtype=dtype)
             else:
                 msg.warning('no data to delete.\n')
 
@@ -449,7 +458,7 @@ class Devices(object):
                 _askdelete = self._InputWithCompletion(question="Sure, you want to delete all saved devices ?", words=['yes', 'no'], _validator=validator, critical=True)
                 print(_askdelete)
                 if (_askdelete.lower() == 'yes'):
-                    self.db_delete_id(ID=ID_D)
+                    self.db_delete_id(ID=ID_D, dtype=dtype)
             else:
                 msg.warning('no data to delete.\n')
 
@@ -462,7 +471,7 @@ class Devices(object):
                 _askdelete = self._InputWithCompletion(question="Sure, you want to delete all saved devices ?", words=['yes', 'no'], _validator=validator, critical=True)
                 print(_askdelete)
                 if (_askdelete.lower() == 'yes'):
-                    self.db_delete_id(ID=ID_D)
+                    self.db_delete_id(ID=ID_D, dtype=dtype)
             else:
                 msg.warning('no data to delete.\n')
 
@@ -471,13 +480,22 @@ class Devices(object):
             _askdelete = self._InputWithCompletion(question="Sure, you want to delete all saved devices ?", words=['yes', 'no'], _validator=validator, critical=True)
             os.system('rm devices/devices.db')
 
-    def db_delete_id(self, ID: int) -> bool:
-        d = Routers.delete_by_id(ID)
-        if d == ID:
-            return True
-
-        return False
-
+    def db_delete_id(self, ID: int, dtype: int) -> bool:
+        if dtype == 1:
+            d = Routers.delete_by_id(ID)
+            if d == ID:
+                return True
+            return False
+        elif dtype == 2:
+            d = Switches.delete_by_id(ID)
+            if d == ID:
+                return True
+            return False
+        elif dtype == 3:
+            d = Others.delete_by_id(ID)
+            if d == ID:
+                return True
+            return False
     def encrypt(self, clear):
         key = self._key
         enc = []
@@ -497,6 +515,203 @@ class Devices(object):
             dec.append(dec_c)
         return "".join(dec)
 
+    def _editDevices(self, dtype):
+        if dtype == 1:
+            check = self._listDevices(dtype=1)
+            if check != False:
+                validator = Validator.from_callable(isNumber, error_message=('please enter valid ID '), move_cursor_to_end=True)
+                ID_D = self._InputWithCompletion(question="Type <red>ID</red> of <yellow>device</yellow> you want <blue>Edit</blue> ?", words=[], _validator=validator, critical=True)
+                data = self._get_data(dtype=dtype, ID=ID_D)
+                data['dtype'] = dtype
+                self.prompt_edit(**data)
+                
+            else:
+                msg.warning('no data to delete.\n')
+        elif dtype == 2:
+            check = self._listDevices(dtype=2)
+            if check != False:
+                validator = Validator.from_callable(isNumber, error_message=('please enter valid ID '), move_cursor_to_end=True)
+                ID_D = self._InputWithCompletion(question="Type <red>ID</red> of <yellow>device</yellow> you want <blue>Edit</blue> ?", words=[], _validator=validator, critical=True)
+                data = self._get_data(dtype=dtype, ID=ID_D)
+                data['dtype'] = dtype
+                self.prompt_edit(**data)
+                
+            else:
+                msg.warning('no data to delete.\n')
+        elif dtype == 3:
+            check = self._listDevices(dtype=3)
+            if check != False:
+                validator = Validator.from_callable(isNumber, error_message=('please enter valid ID '), move_cursor_to_end=True)
+                ID_D = self._InputWithCompletion(question="Type <red>ID</red> of <yellow>device</yellow> you want <blue>Edit</blue> ?", words=[], _validator=validator, critical=True)
+                data = self._get_data(dtype=dtype, ID=ID_D)
+                data['dtype'] = dtype
+                self.prompt_edit(**data)
+                
+            else:
+                msg.warning('no data to delete.\n')
+
+    def prompt_edit(self, **data):
+        dtype = data['dtype']
+        validator = Validator.from_callable(isNotEmpty ,error_message=('please enter valid hostname'), move_cursor_to_end=True)
+        if dtype == 1:
+            hostname = self._InputWithCompletion(question="Hostname [{0}]".format(data['hostname']), words=[], _validator=validator)
+        elif dtype == 2:
+            hostname = self._InputWithCompletion(question="Hostname [{0}]".format(data['hostname']), words=[], _validator=validator)
+        else:
+            hostname = self._InputWithCompletion(question="Hostname [{0}]".format(data['hostname']), words=[], _validator=validator)
+        device_type = 'cisco_ios'
+        validator = Validator.from_callable(isNotEmpty ,error_message=('please enter valid IP or domain name of Cisco equipment'), move_cursor_to_end=True)
+        host = self._InputWithCompletion(question="IP [{0}]".format(data['host']), words=[], _validator=validator)
+        validator = Validator.from_callable(isYesOrNo ,error_message=('please choice yes or no'), move_cursor_to_end=True)
+        telnet = self._InputWithCompletion(question="Use Telnet [Yes/no] [{0}]".format(data['telnet']), words=['yes', 'no'], _validator=validator)
+        if telnet.lower() in ['yes']:
+            telnet = True
+            validator = Validator.from_callable(isNotEmpty ,error_message=('please enter telnet username'), move_cursor_to_end=True)
+            telnet_user = self._InputWithCompletion(question="Telnet username [{0}]".format(data['telnet_user']), words=[], _validator=validator)
+            validator = Validator.from_callable(isNotEmpty ,error_message=('please enter telnet password'), move_cursor_to_end=True)
+            if data['telnet_pass'] == '-':
+                telnet_pass = self._InputWithCompletion(question="Telnet password [{0}]".format('*' * len(data['telnet_pass'])), words=[], _validator=validator)
+            else:
+                telnet_pass = self._InputWithCompletion(question="Telnet password [{0}]".format('*' * len(self.decrypt(data['telnet_pass']))), words=[], _validator=validator)
+            validator = Validator.from_callable(isNumber ,error_message=('please enter telnet port , PRESS <TAB> for default value '), move_cursor_to_end=True)
+            telnet_port = self._InputWithCompletion(question="Telnet port [{0}]".format(data['telnet_port']), words=['23'], _validator=validator)
+        else:
+            telnet = False
+            msg.warning("you can't connect to this cisco equipment using telnet")
+        validator = Validator.from_callable(isYesOrNo ,error_message=('please choice yes or no'), move_cursor_to_end=True)
+        ssh = self._InputWithCompletion(question="Use ssh [Yes/no] [{0}]".format(data['ssh']), words=['yes', 'no'], _validator=validator)
+        if ssh.lower() in ['yes']:
+            ssh = True
+            validator = Validator.from_callable(isNotEmpty ,error_message=('please enter ssh username'), move_cursor_to_end=True)
+            ssh_user = self._InputWithCompletion(question="SSH username [{0}]".format(data['ssh_user']), words=[], _validator=validator)
+            validator = Validator.from_callable(isNotEmpty ,error_message=('please enter telnet password'), move_cursor_to_end=True)
+            if data['ssh_pass'] == '-':
+                ssh_pass = self._InputWithCompletion(question="SSH password [{0}]".format('*' * len(data['ssh_pass'])), words=[], _validator=validator)
+            else:
+                ssh_pass = self._InputWithCompletion(question="SSH password [{0}]".format('*' * len(self.decrypt(data['ssh_pass']))), words=[], _validator=validator)
+            validator = Validator.from_callable(isNumber ,error_message=('please enter SSH port , PRESS <TAB> for default value '), move_cursor_to_end=True)
+            ssh_port = self._InputWithCompletion(question="SSH port [{0}]".format(data['ssh_port']), words=['22'], _validator=validator)
+            validator = Validator.from_callable(isYesOrNo ,error_message=('please choice yes or no'), move_cursor_to_end=True)
+            ssh_use_keys = self._InputWithCompletion(question="Use ssh keys (recommended) [Yes/no] [{0}]".format(data['ssh_use_keys']), words=['yes', 'no'], _validator=validator)
+            if ssh_use_keys.lower() in ['yes']:
+                ssh_use_keys = True
+                validator = Validator.from_callable(isNotEmpty ,error_message=('please enter SSH Keys path'), move_cursor_to_end=True)
+                ssh_keys = self._InputWithCompletion(question="Keys Path [{0}]".format(data['ssh_keys']), words=[str(Path.home())+'/', str(os.getcwd())], _validator=validator)
+            else: ssh_use_keys = False
+        else: 
+            ssh = False
+            msg.warning("you can't connect to this cisco equipment using SSH")
+        if (ssh is False and telnet is False):
+            msg.failure("you can't connect to this device , you don't choice any method of connection ", very=True)
+        hostname = hostname if (hostname != "") else "-"
+        device_type = device_type
+        host = host if (host != "") else "-"
+        if telnet is False:
+            telnet_user = '-'
+            telnet_pass = '-'
+            telnet_port = 23
+        else:
+            telnet_user = telnet_user
+            telnet_pass = self.encrypt(telnet_pass)
+            telnet_port = telnet_port
+        if ssh is False:
+            ssh_use_keys = False
+            ssh_keys = '-'
+            ssh_user = '-'
+            ssh_pass = '-'
+            ssh_port = 22
+        else:
+            ssh_use_keys = ssh_use_keys
+            if ssh_use_keys is False: ssh_keys = '-'
+            else: ssh_keys = ssh_keys
+            ssh_user = ssh_user
+            ssh_pass = self.encrypt(ssh_pass)
+            ssh_port = ssh_port if ssh_port != "" else 22
+        d_type = int(dtype) if dtype is not None else int(d_type)
+        if d_type == 1:
+            rwd = Routers.select().where(Routers.id == data['ID']).get()
+            rwd.hostname = hostname
+            rwd.device_type = device_type
+            rwd.host = host
+            rwd.telnet = telnet
+            rwd.telnet_username = telnet_user
+            rwd.telnet_password = telnet_pass
+            rwd.telnet_port = telnet_port
+            rwd.ssh = ssh
+            rwd.ssh_use_keys = ssh_use_keys
+            rwd.ssh_keys = ssh_keys
+            rwd.ssh_username = ssh_user
+            rwd.ssh_password = ssh_pass
+            rwd.ssh_port = ssh_port
+            rwd.save()
+        elif d_type == 2:
+            rwd = Switches.select().where(Switches.id == data['ID']).get()
+            rwd.hostname = hostname
+            rwd.device_type = device_type
+            rwd.host = host
+            rwd.telnet = telnet
+            rwd.telnet_username = telnet_user
+            rwd.telnet_password = telnet_pass
+            rwd.telnet_port = telnet_port
+            rwd.ssh = ssh
+            rwd.ssh_use_keys = ssh_use_keys
+            rwd.ssh_keys = ssh_keys
+            rwd.ssh_username = ssh_user
+            rwd.ssh_password = ssh_pass
+            rwd.ssh_port = ssh_port
+            rwd.save()
+        else:
+            rwd = Others.select().where(Others.id == data['ID']).get()
+            rwd.hostname = hostname
+            rwd.device_type = device_type
+            rwd.host = host
+            rwd.telnet = telnet
+            rwd.telnet_username = telnet_user
+            rwd.telnet_password = telnet_pass
+            rwd.telnet_port = telnet_port
+            rwd.ssh = ssh
+            rwd.ssh_use_keys = ssh_use_keys
+            rwd.ssh_keys = ssh_keys
+            rwd.ssh_username = ssh_user
+            rwd.ssh_password = ssh_pass
+            rwd.ssh_port = ssh_port
+            rwd.save()
+        db.close()
+        msg.success('Device updated successefly')
+
+    def _get_data(self, dtype, ID):
+        if dtype == 1:
+            r = Routers.select().dicts()
+            data = self.parse_rows(r, ID)
+            return data
+        elif dtype == 2:
+            s = Switches.select().dicts()
+            data = self.parse_rows(s, ID)
+            return data
+        elif dtype == 3:
+            o = Others.select().dicts()
+            data = self.parse_rows(o, ID)
+            return data
+
+    def parse_rows(self, f, id_):
+        for row in f:
+            if row['id'] == int(id_):
+                ID = row['id']
+                HOSTNAME = row['hostname']
+                HOST = row['host']
+                TELNET = row['telnet']
+                TELNET_USERNAME = row['telnet_username']
+                TELNET_PASSWORD = row['telnet_password']
+                TELNET_PORT = row['telnet_port']
+                SSH = row['ssh']
+                SSH_USE_KEYS = row['ssh_use_keys']
+                SSH_USERNAME = row['ssh_username']
+                SSH_PASSWORD = row['ssh_password']
+                SSH_PORT = row['ssh_port']
+                return {'ID':ID , 'hostname':HOSTNAME, 'host':HOST, 'telnet':TELNET, 'telnet_user':TELNET_USERNAME, 'telnet_pass':TELNET_PASSWORD,
+                'telnet_port':TELNET_PORT, 'ssh':SSH, 'ssh_use_keys':SSH_USE_KEYS, 'ssh_user':SSH_USERNAME, 'ssh_pass':SSH_PASSWORD,
+                'ssh_port':SSH_PORT}
+
 class ArgsParser(object):
     def __init__(self):
         self._parser  = argparse.ArgumentParser(description="CNA is Network Automation Script for speed up cisco routers & switches configurations")
@@ -504,6 +719,7 @@ class ArgsParser(object):
         self._devices.add_argument('--devices', action='store_true', required=True)
         self._devices.add_argument('--routers', action='store_true')
         self._devices.add_argument('--switches', action='store_true')
+        self._devices.add_argument('--others', action='store_true')
         self._devices.add_argument('--list', action='store_true')
         self._devices.add_argument('--add', action='store_true')
         self._devices.add_argument('--delete', action='store_true')
@@ -524,36 +740,58 @@ class ArgsParser(object):
 def main():
     args = ArgsParser()._GetAll()
     if args.devices:
-        if args.list and any([args.routers, args.switches, args.add, args.delete, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
+        if args.list and any([args.routers, args.switches, args.others, args.add, args.delete, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
             print('list of all devices')
             Devices()._listDevices(dtype=None)
-        elif args.add and any([args.routers, args.switches, args.list, args.delete, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
+        elif args.add and any([args.routers, args.switches, args.others, args.list, args.delete, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
             Devices()._addDevices(dtype=None)
-        elif args.delete and any([args.routers, args.switches, args.list, args.add, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
+        elif args.delete and any([args.routers, args.switches, args.others, args.list, args.add, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
             print('delete all list of devices')
             Devices()._deleteDevices(dtype=None)
-        elif args.routers and any([args.switches, args.ssh, args.ssh_keys, args.telnet]) is False:
+        elif args.edit and any([args.routers, args.switches, args.others, args.list, args.delete, args.add, args.ssh, args.ssh_keys, args.telnet]) is False:
+            print('edit all devices')
+        elif args.routers and any([args.switches, args.others, args.ssh, args.ssh_keys, args.telnet]) is False:
             print('routers only')
-            if args.list and any([args.add, args.delete]) is False:
+            if args.list and any([args.add, args.delete, args.edit]) is False:
                 print('list routers')
                 Devices()._listDevices(dtype=1)
-            if args.add and any([args.list, args.delete]) is False:
+            if args.add and any([args.list, args.delete, args.edit]) is False:
                 print('add routers')
                 Devices()._addDevices(dtype=1)
-            if args.delete and any([args.add, args.list]) is False:
+            if args.delete and any([args.add, args.list, args.edit]) is False:
                 print('delete routers')
                 Devices()._deleteDevices(dtype=1)
-        elif args.switches and any([args.routers, args.ssh, args.ssh_keys, args.telnet]) is False:
+            if args.edit and any([args.add, args.delete, args.list]) is False:
+                print('edit routers')
+                Devices()._editDevices(dtype=1)
+        elif args.switches and any([args.routers, args.others, args.ssh, args.ssh_keys, args.telnet]) is False:
             print('switches only')
-            if args.list and any([args.add, args.delete]) is False:
+            if args.list and any([args.add, args.delete, args.edit]) is False:
                 print('list switches')
                 Devices()._listDevices(dtype=2)
-            if args.add and any([args.list, args.delete]) is False:
+            if args.add and any([args.list, args.delete, args.edit]) is False:
                 print('add switches')
                 Devices()._addDevices(dtype=2)
-            if args.delete and any([args.add, args.list]) is False:
+            if args.delete and any([args.add, args.list, args.edit]) is False:
                 print('delete switches')
                 Devices()._deleteDevices(dtype=2)
+            if args.edit and any([args.add, args.delete, args.list]) is False:
+                print('edit switches')
+                Devices()._editDevices(dtype=2)
+        elif args.others and any([args.routers, args.switches, args.ssh, args.ssh_keys, args.telnet]) is False:
+            print('others only')
+            if args.list and any([args.add, args.delete, args.edit]) is False:
+                print('list others')
+                Devices()._listDevices(dtype=3)
+            if args.add and any([args.list, args.delete, args.edit]) is False:
+                print('add others')
+                Devices()._addDevices(dtype=3)
+            if args.delete and any([args.add, args.list, args.edit]) is False:
+                print('delete others')
+                Devices()._deleteDevices(dtype=3)
+            if args.edit and any([args.add, args.delete, args.list]) is False:
+                print('edit others')
+                Devices()._editDevices(dtype=3)
         elif args.config_file and any([args.routers, args.switches, args.list, args.add, args.delete, args.edit]) is False:
             print("config file")
             if args.ssh and any([args.telnet]) is False:
