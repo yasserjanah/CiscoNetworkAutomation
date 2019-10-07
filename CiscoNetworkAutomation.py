@@ -90,32 +90,70 @@ class msg(object):
     GREEN  = u"\u001b[38;5;40m"
     BLUE   = u"\u001b[38;5;21m"
     YELLOW = u"\u001b[38;5;220m"
+    MAG = u"\u001b[38;5;125m"
     BLINK = "\033[6m"
     UNDERLINE = "\033[4m"
     BOLD = "\033[1m"
     RESET = "\033[0m"
     
     @staticmethod
-    def failure(_msg:str, very=False):
-        if very is True:
-            text = f"{msg.WHITE}[{msg.RED}CRITICAL{msg.WHITE}] {msg.RED}{_msg}{msg.WHITE}"
+    def failure(_msg:str, very=False, tab=None):
+        if tab is not None:
+            text = f"\t"
         else:
-            text = f"{msg.WHITE}[{msg.RED}CRITICAL{msg.WHITE}] {_msg}{msg.WHITE}"
+            text = f""
+        if very is True:
+            text += f"{msg.WHITE}[{msg.RED}CRITICAL{msg.WHITE}] {msg.RED}{_msg}{msg.WHITE}"
+        else:
+            text += f"{msg.WHITE}[{msg.RED}CRITICAL{msg.WHITE}] {_msg}{msg.WHITE}"
         print(text)
 
     @staticmethod
-    def success(_msg:str):
-        text = f"{msg.WHITE}[{msg.GREEN}SUCCESS{msg.WHITE}] {_msg}{msg.WHITE}"
+    def success(_msg:str, very=False, tab=None):
+        if tab is not None:
+            text = f"\t"
+        else:
+            text = f""
+        if very is True:
+            text += f"{msg.WHITE}[{msg.GREEN}SUCCESS{msg.WHITE}] {msg.GREEN}{_msg}{msg.WHITE}"
+        else:
+            text += f"{msg.WHITE}[{msg.GREEN}SUUCESS{msg.WHITE}] {_msg}{msg.WHITE}"
         print(text)
 
     @staticmethod
-    def warning(_msg:str):
-        text = f"{msg.WHITE}[{msg.YELLOW}WARNING{msg.WHITE}] {_msg}{msg.WHITE}"
+    def warning(_msg:str, very=False, tab=None):
+        if tab is not None:
+            text = f"\t"
+        else:
+            text = f""
+        if very is True:
+            text += f"{msg.WHITE}[{msg.YELLOW}WARNING{msg.WHITE}] {msg.YELLOW}{_msg}{msg.WHITE}"
+        else:
+            text += f"{msg.WHITE}[{msg.YELLOW}WARNING{msg.WHITE}] {_msg}{msg.WHITE}"
         print(text)
 
     @staticmethod
-    def info(_msg:str):
-        text = f"{msg.WHITE}[{msg.BLUE}INFO{msg.WHITE}] {_msg}{msg.WHITE}"
+    def info(_msg:str, very=False, tab=None):
+        if tab is not None:
+            text = f"\t"
+        else:
+            text = f""
+        if very is True:
+            text += f"{msg.WHITE}[{msg.BLUE}INFO{msg.WHITE}] {msg.BLUE}{_msg}{msg.WHITE}"
+        else:
+            text += f"{msg.WHITE}[{msg.BLUE}INFO{msg.WHITE}] {_msg}{msg.WHITE}"
+        print(text)
+
+    @staticmethod
+    def nodata(_msg:str, very=False, tab=None):
+        if tab is not None:
+            text = f"\t"
+        else:
+            text = f""
+        if very is True:
+            text += f"{msg.RED}[+] {msg.RED}{_msg}{msg.WHITE}"
+        else:
+            text += f"{msg.RED}[+] {msg.WHITE}{_msg}{msg.WHITE}"
         print(text)
 
 class TelnetSession:
@@ -207,7 +245,7 @@ class Devices(object):
             d_type = self._InputWithCompletion(question="Choice Device Type", words=['1', '2', '3'], _validator=validator)
         validator = Validator.from_callable(isNotEmpty ,error_message=('please enter valid hostname'), move_cursor_to_end=True)
         if dtype is None:
-            dtype = d_type
+            dtype = int(d_type)
         if dtype == 1:
             hostname = self._InputWithCompletion(question="Hostname (e.g Router1 )", words=[], _validator=validator)
         elif dtype == 2:
@@ -299,7 +337,8 @@ class Devices(object):
             routers_data = Routers.select().dicts()
             self.sort_data(DATA, [i for i in routers_data], cat="routers")
             if DATA == []:
-                print('[+] no data')
+                msg.info(f"{msg.UNDERLINE}List of Routers{msg.RESET}:\n")
+                msg.nodata(f"{msg.BOLD}no routers data {msg.YELLOW}found.\n", tab=True)
             else:
                 msg.info(f"{msg.UNDERLINE}List of Routers{msg.RESET}:")
                 table = tt.to_string(DATA, header=HEADERS, padding=(0, 1))
@@ -309,7 +348,8 @@ class Devices(object):
             switches_data = Switches.select().dicts()
             self.sort_data(DATA, [i for i in switches_data], cat="switches")
             if DATA == []:
-                print('[+] no data')
+                msg.info(f"{msg.UNDERLINE}List of Switches{msg.RESET}:\n")
+                msg.nodata(f"{msg.BOLD}no switche data {msg.YELLOW}found.\n", tab=True)
             else:
                 msg.info(f"{msg.UNDERLINE}List of Switches{msg.RESET}:")
                 table = tt.to_string(DATA, header=HEADERS, padding=(0, 1))
@@ -319,7 +359,8 @@ class Devices(object):
             others_data = Others.select().dicts()
             self.sort_data(DATA, [i for i in others_data], cat="others")
             if DATA == []:
-                print('[+] no data')
+                msg.info(f"{msg.UNDERLINE}List of Others devices{msg.RESET}:")
+                msg.nodata(f"{msg.BOLD}no others devices {msg.YELLOW}found.", tab=True)
             else:
                 msg.info(f"{msg.UNDERLINE}List of Others Devices{msg.RESET}:")
                 table = tt.to_string(DATA, header=HEADERS, padding=(0, 1))
@@ -335,28 +376,29 @@ class Devices(object):
             self.sort_data(DATA_S, [i for i in switches_data], cat="switches")
             self.sort_data(DATA_O, [i for i in others_data], cat="others")
             if DATA_R == []:
-                print("[+] no routers's data")
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Routers{msg.RESET}:\n")
+                msg.nodata(f"{msg.BOLD}no routers data {msg.YELLOW}found.\n", tab=True)
             else:
-                print()
-                msg.info(f"{msg.UNDERLINE}List of Routers{msg.RESET}:")
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Routers{msg.RESET}:\n")
                 table_r = tt.to_string(DATA_R, header=HEADERS, padding=(0, 1))
                 print(table_r)
+                print(' ')
             if DATA_S == []:
-                print("[+] no switches's data")
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Switches{msg.RESET}:\n")
+                msg.nodata(f"{msg.BOLD}no switches data {msg.YELLOW}found.\n", tab=True)
             else:
-                print()
-                msg.info(f"{msg.UNDERLINE}List of Switches{msg.RESET}:")
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Switches{msg.RESET}:\n")
                 table_s = tt.to_string(DATA_S, header=HEADERS, padding=(0, 1))
                 print(table_s)
+                print(' ')
             if DATA_O == []:
-                print("[+] no others devices's data")
+                msg.info(f"{msg.UNDERLINE}List{msg.RESET} {msg.UNDERLINE}of{msg.RESET} {msg.UNDERLINE}Others{msg.RESET}:\n")
+                msg.nodata(f"{msg.BOLD}no others devices data {msg.YELLOW}found.\n", tab=True)
             else:
-                print()
                 msg.info(f"{msg.UNDERLINE}List of Others{msg.RESET}:")
                 table_o = tt.to_string(DATA_O, header=HEADERS, padding=(0, 1))
                 print(table_o)
-
-            
+                print(' ')
 
     def sort_data(self, DATA:list ,d_:list, cat=None):
         for row in d_:
@@ -371,6 +413,18 @@ class Devices(object):
             SSH_KEYS = row['ssh_keys']
             DATA.append([ID, CATEGORY, HOSTNAME, DEVICE_TYPE, HOST, TELNET, SSH, SSH_USE_KEYS, SSH_KEYS])
         return True
+
+    def _deleteDevices(self, dtype=None):
+        if dtype == 1:
+            print("1 ")
+        elif dtype == 2:
+            print("2 ")
+        elif dtype == 3:
+            print("3 ")
+        if dtype is None:
+            validator = Validator.from_callable(isYesOrNo ,error_message=('please choice (yes or no) '), move_cursor_to_end=True)
+            _askdelete = self._InputWithCompletion(question="Sure, you want to delete all saved devices ?", words=['yes', 'no'], _validator=validator)
+            print(_askdelete)
 
     def encrypt(self, clear):
         key = self._key
@@ -395,17 +449,19 @@ class ArgsParser(object):
     def __init__(self):
         self._parser  = argparse.ArgumentParser(description="CNA is Network Automation Script for speed up cisco routers & switches configurations")
         self._devices = self._parser.add_argument_group('Devices Options')
-        self._devices.add_argument('--devices', action='store_true')
+        self._devices.add_argument('--devices', action='store_true', required=True)
         self._devices.add_argument('--routers', action='store_true')
         self._devices.add_argument('--switches', action='store_true')
         self._devices.add_argument('--list', action='store_true')
         self._devices.add_argument('--add', action='store_true')
         self._devices.add_argument('--delete', action='store_true')
-        self._connect = self._parser.add_argument_group('Connection Options')
-        self._connect.add_argument('--connect', action='store_true')
+        self._devices.add_argument('--edit', action='store_true')
+        self._config = self._parser.add_argument_group('Configuration Options')
+        self._config.add_argument('--config-file', help="configuration file")
+        self._config.add_argument('--config-cmd', help="one line of configuration")
         self._ssh = self._parser.add_argument_group('SSH Options')
         self._ssh.add_argument('--ssh', action='store_true')
-        self._ssh.add_argument('--use-keys', action="store_true")
+        self._ssh.add_argument('--ssh-keys', action="store_true")
         self._telnet = self._parser.add_argument_group('Telnet Options')
         self._telnet.add_argument('--telnet', action='store_true')
         self._args = self._parser.parse_args()
@@ -415,44 +471,53 @@ class ArgsParser(object):
 
 def main():
     args = ArgsParser()._GetAll()
-    if args.devices and any([args.ssh, args.telnet, args.use_keys, args.connect]) is False:
-        if args.list and any([args.routers, args.switches]) is False:
+    if args.devices:
+        if args.list and any([args.routers, args.switches, args.add, args.delete, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
             print('list of all devices')
             Devices()._listDevices(dtype=None)
-        elif args.add and any([args.routers, args.switches]) is False:
+        elif args.add and any([args.routers, args.switches, args.list, args.delete, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
             Devices()._addDevices(dtype=None)
-        elif args.routers and any([args.switches]) is False:
+        elif args.delete and any([args.routers, args.switches, args.list, args.add, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
+            exit('delete all list of devices')
+            Devices()._deleteDevices(dtype=None)
+        elif args.routers and any([args.switches, args.ssh, args.ssh_keys, args.telnet]) is False:
             print('routers only')
-            if args.list:
+            if args.list and any([args.add, args.delete]) is False:
                 print('list routers')
                 Devices()._listDevices(dtype=1)
-            elif args.add:
+            if args.add and any([args.list, args.delete]) is False:
                 print('add routers')
                 Devices()._addDevices(dtype=1)
-            elif args.delete:
+            if args.delete and any([args.add, args.list]) is False:
                 print('delete routers')
-        elif args.switches and any([args.routers]) is False:
+        elif args.switches and any([args.routers, args.ssh, args.ssh_keys, args.telnet]) is False:
             print('switches only')
-            if args.list:
+            if args.list and any([args.add, args.delete]) is False:
                 print('list switches')
                 Devices()._listDevices(dtype=2)
-            elif args.add:
+            if args.add and any([args.list, args.delete]) is False:
                 print('add switches')
                 Devices()._addDevices(dtype=2)
-            elif args.delete:
+            if args.delete and any([args.add, args.list]) is False:
                 print('delete switches')
-        else:
-            print(f" --switches doesn't allowed with --routers")
-    elif args.connect and any([args.devices, args.routers, args.switches]) is False:
-        print("connection options")
-        if args.ssh and any([args.telnet]) is False:
-            print('ssh ')
-            if args.use_keys:
-                print("use keys")
-        elif args.telnet and any([args.ssh, args.use_keys]) is False:
-            print('Telnet')
+        elif args.config_file and any([args.routers, args.switches, args.list, args.add, args.delete, args.edit]) is False:
+            print("config file")
+            if args.ssh and any([args.telnet]) is False:
+                print('ssh ')
+                if args.ssh_keys:
+                    print("use keys")
+            if args.telnet and any([args.ssh, args.ssh_keys]) is False:
+                print('Telnet')
+        elif args.config_cmd and any([args.routers, args.switches, args.list, args.add, args.delete, args.edit]) is False:
+            print("config cmd")
+            if args.ssh and any([args.telnet]) is False:
+                print('ssh ')
+                if args.ssh_keys:
+                    print("use keys")
+            if args.telnet and any([args.ssh, args.ssh_keys]) is False:
+                print('Telnet')
     else:
-        msg.failure('--connect is not allowed with --devices')
+        msg.failure('--devices is required !! see the help ..')
 
 
 if __name__ == '__main__':
