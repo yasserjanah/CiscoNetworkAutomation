@@ -1,0 +1,2 @@
+ifconfig
+ls -l /dev/
