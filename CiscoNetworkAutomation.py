@@ -17,6 +17,7 @@ try:
     import glob
     import socket
     import base64
+    import concurrent.futures
     import termtables as tt
     from peewee import *
     from pathlib import Path
@@ -157,26 +158,58 @@ class msg(object):
         print(text)
 
 class TelnetSession:
-    def __init__(self, _host:str, _port=23):
+    def __init__(self, _host:str, _user:str, _pass:str, _port:str, cmd:list):
         self._host = _host
+        self._user = _user
+        self._pass = _pass
         self._port = _port
+        self._cmd = cmd
         try:
             self._tn = telnetlib.Telnet(self._host, self._port)
             msg.success("Connection etablished !! ")
         except Exception as err:
-            exit(msg.failure(err, True))
+            msg.failure(err, True)
 
     def run(self):
         msg.info('starting login .....')
         self._tn.read_until(b"Username: ")
-        self._tn.write("root".encode('ascii') + b"\n")
+        self._tn.write(self._user.encode('ascii') + b"\n")
         time.sleep(1)
         self._tn.read_until(b"Password: ")
         msg.info('writing password .....')
-        self._tn.write("janah".encode('ascii') + b"\n")
+        self._tn.write(self._pass.encode('ascii') + b"\n")
         time.sleep(1)
-        self._tn.write(b'exit\n')
+        for c in self._cmd:
+            self._tn.write(c.encode('ascii') + b'\n')
         print(self._tn.read_all().decode('ascii'))
+
+class SSHSession:
+    def __init__(self, _host:str, _user:str, _pass:str, _port:str, keys='', cmd:list):
+        self._host = _host
+        self._user = _user
+        self._pass = _pass
+        self._port = _port
+        self._keys = keys
+        self._cmd = cmd
+        try:
+            self.conn_setup = paramiko.SSHClient()
+            self.conn_setup.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            if self.keys == '':
+                self.conn_setup.connect(self._host, port=self._port, username=self._user, password=self._pass, look_for_keys=False, allow_agent=False)
+            else:
+                self.conn_setup.connect(self._host, port=self._port, username=self._user, key_filename=self._keys, look_for_keys=False, allow_agent=False)
+            self.connection = self.conn_setup.invoke_shell()
+            f_o = self.conn_setup.recv(65535)
+            print(f_o)
+        except Exception as err:
+            msg.failure(err, True)
+
+    def run(self):
+        for c in self._cmd:
+            self.connection.send(c + '\n')
+            time.sleep(.5)
+
+        print(self.conn_setup.recv(65535))
 
 
 def isInSupportedTypes(text):
@@ -280,6 +313,7 @@ class Devices(object):
         else:
             telnet = False
             msg.warning("you can't connect to this cisco equipment using telnet")
+        validator = Validator.from_callable(isYesOrNo ,error_message=('please choice yes or no'), move_cursor_to_end=True)
         ssh = self._InputWithCompletion(question="Use ssh [Yes/no]", words=['yes', 'no'], _validator=validator)
         if ssh.lower() in ['yes']:
             ssh = True
@@ -705,18 +739,167 @@ class Devices(object):
                 TELNET_PORT = row['telnet_port']
                 SSH = row['ssh']
                 SSH_USE_KEYS = row['ssh_use_keys']
+                SSH_KEYS = row['ssh_keys']
                 SSH_USERNAME = row['ssh_username']
                 SSH_PASSWORD = row['ssh_password']
                 SSH_PORT = row['ssh_port']
                 return {'ID':ID , 'hostname':HOSTNAME, 'host':HOST, 'telnet':TELNET, 'telnet_user':TELNET_USERNAME, 'telnet_pass':TELNET_PASSWORD,
-                'telnet_port':TELNET_PORT, 'ssh':SSH, 'ssh_use_keys':SSH_USE_KEYS, 'ssh_user':SSH_USERNAME, 'ssh_pass':SSH_PASSWORD,
+                'telnet_port':TELNET_PORT, 'ssh':SSH, 'ssh_use_keys':SSH_USE_KEYS, 'ssh_keys':SSH_KEYS, 'ssh_user':SSH_USERNAME, 'ssh_pass':SSH_PASSWORD,
                 'ssh_port':SSH_PORT}
+
+    def connect(self, args, method, ssh_keys=False):
+        x = self._processData(args, method, ssh_keys)
+        if method == "ssh":
+            if ssh_keys == False:
+               for i in x:
+                   print(i)
+            else:
+                for i in x:
+                    print(i)
+        elif method == "telnet":
+            for i in x:
+                print(i)
+
+    def _processData(self, args, method, ssh_keys) -> list:
+        EXE = []
+        ALL = self.getCredsConf(args, method)
+        for item in ALL:
+            if method == "ssh":
+                if item['ssh'] == 'False':
+                    msg.failure(f"can't connect to {msg.YELLOW}{item['host']}{msg.RED} using SSH , because you don't set valid ssh username & password.", very=True)
+                else:
+                    if ssh_keys != False:
+                        if item['ssh_use_keys'] == 'False':
+                            msg.failure(f"can't connect to {msg.YELLOW}{item['host']}{msg.RED} using SSH Keys , because you don't set ssh keys.", very=True)
+                        else:
+                            #if 
+                            EXE.append([item['host'], item['ssh_username'], self.decrypt(item['ssh_password']), item['ssh_keys']])
+                    else:
+                        EXE.append([item['host'], item['ssh_username'], self.decrypt(item['ssh_password'])])
+            else: 
+                if item['telnet'] =='False':
+                    msg.failure(f"can't connect to {msg.YELLOW}{item['host']}{msg.RED} using TELNET , because you don't set valid telnet username & password.", very=True)
+                else:
+                    EXE.append([item['host'], item['telnet_username'], self.decrypt(item['telnet_password'])])
+    
+        return EXE
+
+    def getCredsConf(self, args, method) -> list:
+        BIGLIST = []
+        host = ''
+        telnet = False
+        telnet_username = ''
+        telnet_password = ''
+        ssh = False
+        ssh_username = ''
+        ssh_password = ''
+        ssh_use_keys = False
+        ssh_keys = ''
+        r, s, o = self._returnedDValue(args)
+        if r != []:
+            r_i = self.getInstance(r, 1)
+            for index_of_r in r_i:
+                if method == "ssh":
+                    host = index_of_r.host
+                    ssh = index_of_r.ssh
+                    ssh_username = index_of_r.ssh_username
+                    ssh_password = index_of_r.ssh_password
+                    ssh_keys = index_of_r.ssh_keys
+                    ssh_use_keys = index_of_r.ssh_use_keys
+                    BIGLIST.append({'host':host, 'ssh':ssh, 'ssh_username':ssh_username, 'ssh_password':ssh_password, 'ssh_use_keys':ssh_use_keys, 'ssh_keys':ssh_keys})
+                elif method == "telnet":
+                    host = index_of_r.host
+                    telnet = index_of_r.telnet
+                    telnet_username = index_of_r.telnet_username
+                    telnet_password = index_of_r.telnet_password
+                    BIGLIST.append({'host':host, 'telnet':telnet, 'telnet_username':telnet_username, 'telnet_password':telnet_password})
+        if s != []:
+            s_i = self.getInstance(s, 2)
+            for index_of_s in s_i:
+                if method == "ssh":
+                    host = index_of_s.host
+                    ssh = index_of_s.ssh
+                    ssh_username = index_of_s.ssh_username
+                    ssh_password = index_of_s.ssh_password
+                    ssh_keys = index_of_s.ssh_keys
+                    ssh_use_keys = index_of_s.ssh_use_keys
+                    BIGLIST.append({'host':host, 'ssh':ssh, 'ssh_username':ssh_username, 'ssh_password':ssh_password, 'ssh_use_keys':ssh_use_keys, 'ssh_keys':ssh_keys})
+                elif method == "telnet":
+                    host = index_of_s.host
+                    telnet = index_of_s.telnet
+                    telnet_username = index_of_s.telnet_username
+                    telnet_password = index_of_s.telnet_password
+                    BIGLIST.append({'host':host, 'telnet':telnet, 'telnet_username':telnet_username, 'telnet_password':telnet_password})
+        if o != []:
+            o_i = self.getInstance(o, 3)    
+            for index_of_o in o_i:
+                if method == "ssh":
+                    host = index_of_o.host
+                    ssh = index_of_o.ssh
+                    ssh_username = index_of_o.ssh_username
+                    ssh_password = index_of_o.ssh_password
+                    ssh_keys = index_of_o.ssh_keys
+                    ssh_use_keys = index_of_o.ssh_use_keys
+                    BIGLIST.append({'host':host, 'ssh':ssh, 'ssh_username':ssh_username, 'ssh_password':ssh_password, 'ssh_use_keys':ssh_use_keys, 'ssh_keys':ssh_keys})
+                elif method == "telnet":
+                    host = index_of_o.host
+                    telnet = index_of_o.telnet
+                    telnet_username = index_of_o.telnet_username
+                    telnet_password = index_of_o.telnet_password
+                    BIGLIST.append({'host':host, 'telnet':telnet, 'telnet_username':telnet_username, 'telnet_password':telnet_password})
+
+        return (BIGLIST)
+
+    def getInstance(self, LIST, ID):
+        ALL_LIST = []
+        if ID == 1:
+            for I in LIST:
+                try:
+                    d = Routers.select().where(Routers.id == int(I)).get()
+                    ALL_LIST.append(d)
+                except:
+                    pass
+        elif ID == 2:
+            for I in LIST:
+                try:
+                    d = Switches.select().where(Switches.id == int(I)).get()
+                    ALL_LIST.append(d)
+                except:
+                    pass
+        elif ID == 3:
+            for I in LIST:
+                try:
+                    d = Others.select().where(Others.id == int(I)).get()
+                    ALL_LIST.append(d)
+                except:
+                    pass
+
+        return ALL_LIST
+
+    def _returnedDValue(self, text):
+        routers_devices, switches_devices, others_devices = [], [], []
+        for i in text.split('-'):
+            if i.split('=')[0].lower() == 'r':
+                routers_devices = i.split('=')[1].split(',')
+            if i.split('=')[0].lower() == 's':
+                switches_devices = i.split('=')[1].split(',')
+            if i.split('=')[0].lower() == 'o':
+                others_devices = i.split('=')[1].split(',')
+        return routers_devices, switches_devices, others_devices
+
+    def readConfigfile(self, file):
+        cmd_list = []
+        f = open(file, mode='r').readlines()
+        for line in f:
+            cmd_list.append(line.strip('\n'))
+
+        return cmd_list
 
 class ArgsParser(object):
     def __init__(self):
         self._parser  = argparse.ArgumentParser(description="CNA is Network Automation Script for speed up cisco routers & switches configurations")
         self._devices = self._parser.add_argument_group('Devices Options')
-        self._devices.add_argument('--devices', action='store_true', required=True)
+        self._devices.add_argument('--devices', action='store_true')
         self._devices.add_argument('--routers', action='store_true')
         self._devices.add_argument('--switches', action='store_true')
         self._devices.add_argument('--others', action='store_true')
@@ -725,6 +908,7 @@ class ArgsParser(object):
         self._devices.add_argument('--delete', action='store_true')
         self._devices.add_argument('--edit', action='store_true')
         self._config = self._parser.add_argument_group('Configuration Options')
+        self._config.add_argument('--connect-to', help="IDs of device you want to connect (e.g --connect-to='R=1,2,3-S=2,3,10-O=2,8,9')")
         self._config.add_argument('--config-file', help="configuration file")
         self._config.add_argument('--config-cmd', help="one line of configuration")
         self._ssh = self._parser.add_argument_group('SSH Options')
@@ -740,17 +924,17 @@ class ArgsParser(object):
 def main():
     args = ArgsParser()._GetAll()
     if args.devices:
-        if args.list and any([args.routers, args.switches, args.others, args.add, args.delete, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
+        if args.list and any([args.routers, args.switches, args.others, args.add, args.delete, args.edit, args.ssh, args.ssh_keys, args.telnet, args.connect_to]) is False:
             print('list of all devices')
             Devices()._listDevices(dtype=None)
-        elif args.add and any([args.routers, args.switches, args.others, args.list, args.delete, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
+        elif args.add and any([args.routers, args.switches, args.others, args.list, args.delete, args.edit, args.ssh, args.ssh_keys, args.telnet, args.connect_to]) is False:
             Devices()._addDevices(dtype=None)
-        elif args.delete and any([args.routers, args.switches, args.others, args.list, args.add, args.edit, args.ssh, args.ssh_keys, args.telnet]) is False:
+        elif args.delete and any([args.routers, args.switches, args.others, args.list, args.add, args.edit, args.ssh, args.ssh_keys, args.telnet, args.connect_to]) is False:
             print('delete all list of devices')
             Devices()._deleteDevices(dtype=None)
-        elif args.edit and any([args.routers, args.switches, args.others, args.list, args.delete, args.add, args.ssh, args.ssh_keys, args.telnet]) is False:
+        elif args.edit and any([args.routers, args.switches, args.others, args.list, args.delete, args.add, args.ssh, args.ssh_keys, args.telnet, args.connect_to]) is False:
             print('edit all devices')
-        elif args.routers and any([args.switches, args.others, args.ssh, args.ssh_keys, args.telnet]) is False:
+        elif args.routers and any([args.switches, args.others, args.ssh, args.ssh_keys, args.telnet, args.connect_to]) is False:
             print('routers only')
             if args.list and any([args.add, args.delete, args.edit]) is False:
                 print('list routers')
@@ -764,7 +948,7 @@ def main():
             if args.edit and any([args.add, args.delete, args.list]) is False:
                 print('edit routers')
                 Devices()._editDevices(dtype=1)
-        elif args.switches and any([args.routers, args.others, args.ssh, args.ssh_keys, args.telnet]) is False:
+        elif args.switches and any([args.routers, args.others, args.ssh, args.ssh_keys, args.telnet, args.connect_to]) is False:
             print('switches only')
             if args.list and any([args.add, args.delete, args.edit]) is False:
                 print('list switches')
@@ -778,7 +962,7 @@ def main():
             if args.edit and any([args.add, args.delete, args.list]) is False:
                 print('edit switches')
                 Devices()._editDevices(dtype=2)
-        elif args.others and any([args.routers, args.switches, args.ssh, args.ssh_keys, args.telnet]) is False:
+        elif args.others and any([args.routers, args.switches, args.ssh, args.ssh_keys, args.telnet, args.connect_to]) is False:
             print('others only')
             if args.list and any([args.add, args.delete, args.edit]) is False:
                 print('list others')
@@ -792,19 +976,23 @@ def main():
             if args.edit and any([args.add, args.delete, args.list]) is False:
                 print('edit others')
                 Devices()._editDevices(dtype=3)
-        elif args.config_file and any([args.routers, args.switches, args.list, args.add, args.delete, args.edit]) is False:
+    elif args.connect_to and any([args.devices, args.routers, args.switches, args.others, args.add, args.delete, args.edit]) is False:
+        if args.config_file and any([args.routers, args.switches, args.list, args.add, args.delete, args.edit]) is False:
             print("config file")
-            if args.ssh and any([args.telnet]) is False:
+            if args.ssh and any([args.telnet, args.ssh_keys]) is False:
                 print('ssh ')
-                if args.ssh_keys:
+                Devices().connect(args=args.connect_to, method="ssh", ssh_keys=False)
+            if args.ssh and args.ssh_keys and any([args.telnet]) is False:
                     print("use keys")
+                    Devices().connect(args=args.connect_to, method="ssh", ssh_keys=args.ssh_keys)
             if args.telnet and any([args.ssh, args.ssh_keys]) is False:
                 print('Telnet')
+                Devices().connect(args=args.connect_to, method="telnet")
         elif args.config_cmd and any([args.routers, args.switches, args.list, args.add, args.delete, args.edit]) is False:
             print("config cmd")
             if args.ssh and any([args.telnet]) is False:
                 print('ssh ')
-                if args.ssh_keys:
+            elif args.ssh and args.ssh_keys:
                     print("use keys")
             if args.telnet and any([args.ssh, args.ssh_keys]) is False:
                 print('Telnet')
@@ -819,4 +1007,10 @@ if __name__ == '__main__':
         exit(msg.failure("CTRL+C detected"))
     except Exception as err:
         raise (err)
-        #exit(msg.failure(str(err)))
+        exit(msg.failure(str(err)))
+
+
+"""
+with concurrent.futures.ThreadPoolExecutor() as exe:
+    exe.map(func, list)
+"""
