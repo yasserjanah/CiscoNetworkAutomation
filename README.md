@@ -27,8 +27,8 @@ CNA is Network Automation script for speed up cisco routers & switches configura
 ![img7](https://i.ibb.co/bNRfMPR/Screenshot-from-2019-10-10-02-47-20.png)
 
 # the source code
-## the source will be released when we will finish the programe
 
+the source will be released when we will finish the programe.
 contact me if you want the source code :
 ```
     janah.y4ss3r@gmail.com
