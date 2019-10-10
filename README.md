@@ -12,19 +12,19 @@ CNA is Network Automation script for speed up cisco routers & switches configura
 ![ciscoNetAuto](https://i.ibb.co/C0pbqCk/1280px-Cisco-logo-svg.png)
 
 # Screenshots
-![img1](https://i.ibb.co/wcgWCLn/Screenshot-from-2019-10-10-02-48-51.png)
+![img1](https://i.imgur.com/oy39Qam.png)
 
-![img2](https://i.ibb.co/9GDR7mb/Screenshot-from-2019-10-10-02-33-08.png)
+![img2](https://i.imgur.com/TpAfkV0.png)
 
-![img3](https://i.ibb.co/CVZCMGS/Screenshot-from-2019-10-10-02-34-18.png)
+![img3](https://i.imgur.com/nwTi8OO.png)
 
-![img4](https://i.ibb.co/T13gJRw/Screenshot-from-2019-10-10-02-35-17.png)
+![img4](https://i.imgur.com/73jEgBG.png)
 
-![img5](https://i.ibb.co/ZgfFMNP/Screenshot-from-2019-10-10-02-35-41.png)
+![img5](https://i.imgur.com/ZC6vY7L.png)
 
-![img6](https://i.ibb.co/Yc4LLCD/Screenshot-from-2019-10-10-02-44-22.png)
+![img6](https://i.imgur.com/8AjPbYS.png)
 
-![img7](https://i.ibb.co/bNRfMPR/Screenshot-from-2019-10-10-02-47-20.png)
+![img7](https://i.imgur.com/RnfkxPO.png)
 
 # the source code
 
