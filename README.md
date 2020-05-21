@@ -16,6 +16,7 @@ CNA is Network Automation script for speed up cisco routers & switches configura
 ![img1](https://i.imgur.com/oy39Qam.png)
 
 ```* add new device ```
+
 ![img3](https://i.imgur.com/nwTi8OO.png)
 
 ![img4](https://i.imgur.com/73jEgBG.png)
