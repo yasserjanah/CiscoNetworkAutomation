@@ -12,24 +12,25 @@ CNA is Network Automation script for speed up cisco routers & switches configura
 ![ciscoNetAuto](https://i.ibb.co/C0pbqCk/1280px-Cisco-logo-svg.png)
 
 # Screenshots
+
 ![img1](https://i.imgur.com/oy39Qam.png)
 
-![img2](https://i.imgur.com/TpAfkV0.png)
-
+```* add new device ```
 ![img3](https://i.imgur.com/nwTi8OO.png)
 
 ![img4](https://i.imgur.com/73jEgBG.png)
 
+```* list all devices ```
+
+![img2](https://i.imgur.com/TpAfkV0.png)
+
 ![img5](https://i.imgur.com/ZC6vY7L.png)
+
+```* configure Router that have ID 1 using  config  file (file.txt) using TELNET ```
 
 ![img6](https://i.imgur.com/8AjPbYS.png)
 
+```* configure Router that have ID 1 using  one command (sh ip int br) using SSH ```
+
 ![img7](https://i.imgur.com/RnfkxPO.png)
 
-# the source code
-
-the source will be released when we will finish the program. 
-contact me if you want the source code  for development purposes:
-```
-    janah.y4ss3r@gmail.com
-```
