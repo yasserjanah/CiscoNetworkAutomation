@@ -5,8 +5,8 @@ CNA is Network Automation script for speed up cisco routers & switches configura
 ```
     [+] AUTHOR:       Yasser Janah
     [+] GITHUB:       https://github.com/yasserjanah
-    [+] TWITTER:      https://twitter.com/yasser_janah
-    [+] FACEBOOK:     https://fb.com/yasser.janah
+    [+] TWITTER:      https://twitter.com/th3x0ne
+    [+] FACEBOOK:     https://fb.com/yasser.janah0
 ```
 
 ![ciscoNetAuto](https://i.ibb.co/C0pbqCk/1280px-Cisco-logo-svg.png)
